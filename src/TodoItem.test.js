@@ -1,45 +1,49 @@
 import React from "react";
 import axios from "axios";
+import { useParams } from "react-router-dom";
 
-import { render, screen, waitForElementToBeRemoved } from "./custom-render";
-import { useParams, MemoryRouter } from "react-router-dom";
+import "./App.css";
 
-import { TodoItem } from "./TodoItem";
+import { AppContext } from "./AppContext";
 
-describe("<TodoItem />", () => {
-  it("can tell mocked from unmocked functions", () => {
-    expect(jest.isMockFunction(useParams)).toBe(true);
-    expect(jest.isMockFunction(MemoryRouter)).toBe(false);
-  });
+export const TodoItem = () => {
+  const { id } = useParams();
 
-  it("Renders <TodoItem /> correctly for a completed item", async () => {
-    useParams.mockReturnValue({ id: 1 });
+  const [loading, setLoading] = React.useState(true);
 
-    render(<TodoItem />);
+  const {
+    appData: { activeToDoItem },
+    appDispatch,
+  } = React.useContext(AppContext);
 
-    await waitForElementToBeRemoved(() =>
-      screen.getByText(/Fetching todo item 1/i)
-    );
-    expect(axios.get).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/todo item 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Added by: 1/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/This item has been completed/)
-    ).toBeInTheDocument();
-  });
+  const { title, completed, userId } = activeToDoItem;
 
-  it("Renders <TodoItem /> correctly for an uncompleted item", async () => {
-    useParams.mockReturnValue({ id: 2 });
+  React.useEffect(() => {
+    axios
+      .get(`https://jsonplaceholder.typicode.com/todos/${id}`)
+      .then((resp) => {
+        const { data } = resp;
+        appDispatch({ type: "LOAD_SINGLE_TODO", todo: data });
+        setLoading(false);
+      });
+  }, [id, appDispatch]);
 
-    render(<TodoItem />);
-    await waitForElementToBeRemoved(() =>
-      screen.getByText(/Fetching todo item 2/i)
-    );
-    expect(axios.get).toHaveBeenCalledTimes(2);
-    expect(screen.getByText(/todo item 2/)).toBeInTheDocument();
-    expect(screen.getByText(/Added by: 2/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/This item is yet to be completed/)
-    ).toBeInTheDocument();
-  });
-});
+  return (
+    <div className="single-todo-item">
+      {loading ? (
+        <p>Fetching todo item {id}</p>
+      ) : (
+        <div>
+          <h2 className="todo-title">{title}</h2>
+          <h4>Added by: {userId}</h4>
+          {completed ? (
+            <p className="completed">This item has been completed</p>
+          ) : (
+            <p className="not-completed">This item is yet to be completed</p>
+          )}
+
+        </div>
+      )}
+    </div>
+  );
+};
